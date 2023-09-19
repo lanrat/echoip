@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"net/http/pprof"
@@ -195,6 +196,17 @@ func (s *Server) CLIHandler(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
+func (s *Server) CLIHeaderHandler(w http.ResponseWriter, r *http.Request) *appError {
+	/*response, err := s.newResponse(r)
+	if err != nil {
+		return badRequest(err).WithMessage(err.Error()).AsJSON()
+	}*/
+	for _, k := range sortHeaders(r.Header) {
+		fmt.Fprintf(w, "%s:%v\n", k, r.Header[k])
+	}
+	return nil
+}
+
 func (s *Server) CLICountryHandler(w http.ResponseWriter, r *http.Request) *appError {
 	response, err := s.newResponse(r)
 	if err != nil {
@@ -359,6 +371,17 @@ func (s *Server) DefaultHandler(w http.ResponseWriter, r *http.Request) *appErro
 	return nil
 }
 
+func sortHeaders(m http.Header) []string {
+	out := make([]string, len(m))
+	i := 0
+	for k := range m {
+		out[i] = k
+		i++
+	}
+	sort.Strings(out)
+	return out
+}
+
 func NotFoundHandler(w http.ResponseWriter, r *http.Request) *appError {
 	err := notFound(nil).WithMessage("404 page not found")
 	if r.Header.Get("accept") == jsonMediaType {
@@ -425,6 +448,7 @@ func (s *Server) Handler() http.Handler {
 	r.Route("GET", "/", s.CLIHandler).MatcherFunc(cliMatcher)
 	r.Route("GET", "/", s.CLIHandler).Header("Accept", textMediaType)
 	r.Route("GET", "/ip", s.CLIHandler)
+	r.Route("GET", "/headers", s.CLIHeaderHandler)
 	if !s.gr.IsEmpty() {
 		r.Route("GET", "/country", s.CLICountryHandler)
 		r.Route("GET", "/country-iso", s.CLICountryISOHandler)
